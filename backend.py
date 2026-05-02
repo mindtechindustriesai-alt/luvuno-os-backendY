@@ -1,7 +1,6 @@
 """
 LUVUNO OS — MQOS Backend Service
-Provides API endpoints for quantum operations, key management, and AI
-Deploy to Render as a Web Service
+FastAPI server for quantum operations, key management, and AI chat
 """
 
 import os
@@ -11,21 +10,19 @@ from datetime import datetime
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional, Dict, Any, List
+from typing import Dict, Any, List, Optional
 import uvicorn
 
-# Load environment variables
 from dotenv import load_dotenv
 load_dotenv()
 
-# Initialize FastAPI
 app = FastAPI(
     title="Luvuno OS — MQOS Backend",
     description="Quantum Operating System Backend API",
     version="1.0.0"
 )
 
-# CORS for frontend connection
+# CORS for frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -45,16 +42,12 @@ class QuantumKeyRequest(BaseModel):
 class ThreatDetectionRequest(BaseModel):
     features: Dict[str, Any]
 
-class BellTestRequest(BaseModel):
-    shots: int = 1024
-
 class ChatRequest(BaseModel):
     message: str
     portal: str = "quantum"
 
 # ============================================================
-# SIMULATED BACKEND STATE (For demo)
-# In production, connect to real IBM Quantum
+# SIMULATED BACKEND STATE
 # ============================================================
 
 BACKEND_STATE = {
@@ -94,12 +87,10 @@ async def health():
 
 @app.get("/api/backends")
 async def get_backends():
-    """Get status of all 7 quantum backends + MQOS router"""
     return BACKEND_STATE
 
 @app.get("/api/keys/inventory")
 async def get_key_inventory():
-    """Get quantum key inventory"""
     return {
         "active_keys": ACTIVE_KEYS,
         "expired_keys": EXPIRED_KEYS,
@@ -110,7 +101,6 @@ async def get_key_inventory():
 
 @app.post("/api/keys/generate")
 async def generate_key(request: QuantumKeyRequest):
-    """Generate a new quantum key"""
     global ACTIVE_KEYS
     ACTIVE_KEYS += 1
     key_id = str(uuid.uuid4())[:8]
@@ -124,12 +114,10 @@ async def generate_key(request: QuantumKeyRequest):
 
 @app.post("/api/keys/rotate")
 async def rotate_keys():
-    """Rotate all active keys"""
     global ACTIVE_KEYS, EXPIRED_KEYS
     rotated = min(10, ACTIVE_KEYS)
     EXPIRED_KEYS += rotated
     ACTIVE_KEYS -= rotated
-    # Generate new keys
     ACTIVE_KEYS += rotated
     return {
         "success": True,
@@ -140,7 +128,6 @@ async def rotate_keys():
 
 @app.post("/api/keys/revoke/{key_id}")
 async def revoke_key(key_id: str):
-    """Revoke a specific key"""
     global ACTIVE_KEYS, REVOKED_KEYS
     if ACTIVE_KEYS > 0:
         ACTIVE_KEYS -= 1
@@ -150,7 +137,6 @@ async def revoke_key(key_id: str):
 
 @app.get("/api/threats/stats")
 async def get_threat_stats():
-    """Get threat detection statistics"""
     return {
         "threats_blocked": THREATS_BLOCKED,
         "detection_rate": 99.97,
@@ -162,9 +148,7 @@ async def get_threat_stats():
 
 @app.post("/api/threats/detect")
 async def detect_threat(request: ThreatDetectionRequest):
-    """Hybrid AI threat detection"""
     features = request.features
-    # Simulated detection logic
     score = 0
     if features.get("packet_size", 512) < 100:
         score += 2
@@ -192,7 +176,6 @@ async def detect_threat(request: ThreatDetectionRequest):
 
 @app.get("/api/bell/test")
 async def run_bell_test():
-    """Run CHSH Bell test (simulated)"""
     return {
         "bell_parameter": 2.76,
         "classical_limit": 2.0,
@@ -207,7 +190,6 @@ async def run_bell_test():
 
 @app.post("/api/portals/{portal_name}/dashboard")
 async def get_portal_dashboard(portal_name: str):
-    """Get dashboard data for any portal"""
     portal_data = {
         "quantum": {
             "title": "Quantum Core",
@@ -274,19 +256,15 @@ async def get_portal_dashboard(portal_name: str):
             ]
         }
     }
-    
     return portal_data.get(portal_name, {"error": "Portal not found"})
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
-    """Khensani AI chat endpoint"""
-    # This forwards to DeepSeek API
-    import httpx
-    
     deepseek_key = os.getenv("DEEPSEEK_API_KEY")
     if not deepseek_key:
         return {"response": "Khensani AI is not configured. Please add DEEPSEEK_API_KEY."}
     
+    import httpx
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(
@@ -298,7 +276,7 @@ async def chat(request: ChatRequest):
                 json={
                     "model": "deepseek-chat",
                     "messages": [
-                        {"role": "system", "content": f"You are Khensani, AI assistant for Luvuno OS. Current portal: {request.portal}. You are knowledgeable about quantum computing, AI, and cybersecurity. Answer clearly and concisely."},
+                        {"role": "system", "content": f"You are Khensani, AI assistant for Luvuno OS. Current portal: {request.portal}. Answer clearly and concisely."},
                         {"role": "user", "content": request.message}
                     ],
                     "temperature": 0.7,
